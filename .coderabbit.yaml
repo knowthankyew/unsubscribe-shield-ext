@@ -1,0 +1,61 @@
+# CodeRabbit Configuration for unsubscribe-shield-ext
+# Targeted Audit Scope: WebExtension / Thunderbird MailExtension Security, Zero-Cookie Sterile RFC 8058 Execution & Local Ingestion Plane Integrity
+
+language: "en-US"
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  sequence_diagrams: true
+  auto_review:
+    enabled: true
+    drafts: false
+
+  path_filters:
+    - "!**/*.gif"
+    - "!**/*.mp4"
+    - "!dist/**"
+    - "!package-lock.json"
+    - "!bom.json"
+
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        You are performing an assertive security and architectural audit for "unsubscribe-shield-ext",
+        a Manifest V3 companion extension for Thunderbird and webmail clients.
+        The extension pairs with local mailStripper (:5001) and performs sterile RFC 8058 execution.
+
+        Verify these non-negotiable architectural invariants:
+
+        1. ZERO AMBIENT COOKIES OR CREDENTIALS (CRITICAL):
+           - In `src/core/sterile-executor.ts`, any outbound HTTP request to an opt-out endpoint MUST enforce `credentials: 'omit'`.
+           - Enforce `redirect: 'manual'` to prevent tracking hop chains across domains.
+           - Enforce `referrerPolicy: 'no-referrer'`.
+           - The response stream must be immediately canceled (`await res.body?.cancel()`) after status check.
+
+        2. STRICT MANIFEST V3 CSP & HOST PERMISSIONS:
+           - In `manifest.json`, CSP must strictly restrict extension pages: `connect-src 'self' http://localhost:5001;`.
+           - Prohibit broad external host permissions (`<all_urls>` is forbidden; host permissions must be scoped to `http://localhost:5001/*`).
+
+        3. BYTE-PRESERVING MIME INGESTION (CRITICAL):
+           - In `src/core/mail-stripper-client.ts` and background worker, raw email streams must NEVER be decoded using `Blob.text()` or UTF-8 string conversions, which corrupts 8-bit non-UTF-8 MIME bodies.
+           - Enforce client-side budget cap of 10 MB (`blob.size <= 10 * 1024 * 1024`).
+
+        4. SAFE DOM MANIPULATION:
+           - In `src/popup/` and any content scripts, prohibit `innerHTML` or unescaped string interpolation. All nodes must be constructed using safe DOM primitives (`textContent`, `createElement`).
+
+        5. MANDATORY ACTIVE-INBOX DISCLOSURE:
+           - The UI must always display the Active-Inbox Reconnaissance Warning before remote execution.
+           - Execution must require explicit user confirmation.
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: "auto"
+  linked_repositories:
+    - repository: "knowthankyew/mail-stripper"
+      instructions: "Local .NET 10 ingestion plane and forensic analyzer."
+    - repository: "knowthankyew/portfolio-admin"
+      instructions: "Master brief and portfolio-wide security invariant specifications."

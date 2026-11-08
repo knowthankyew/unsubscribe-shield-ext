@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unsubscribe Shield</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="shield-container">
+    <header class="shield-header">
+      <div class="brand">
+        <span class="icon">🛡️</span>
+        <h1>Unsubscribe Shield</h1>
+      </div>
+      <span id="service-status" class="status-badge offline">Checking :5001...</span>
+    </header>
+
+    <main class="shield-body">
+      <section id="idle-view" class="view-panel">
+        <p class="hint">Inspect an active email to analyze header integrity & opt-out safety.</p>
+        <button id="inspect-btn" class="btn btn-primary">Inspect Active Message</button>
+      </section>
+
+      <section id="report-view" class="view-panel hidden">
+        <div class="verdict-banner">
+          <div id="verdict-badge" class="badge">Checking...</div>
+          <div id="provenance-badge" class="badge prov-badge">Provenance: ...</div>
+        </div>
+
+        <p id="summary-verdict" class="verdict-text"></p>
+
+        <div id="recon-warning-card" class="warning-card hidden">
+          <span class="warning-icon">⚠️</span>
+          <div class="warning-content">
+            <strong>Active-Inbox Reconnaissance Warning:</strong>
+            <p id="recon-warning-text"></p>
+          </div>
+        </div>
+
+        <div id="action-section" class="action-section hidden">
+          <button id="execute-btn" class="btn btn-danger">Execute Sterile One-Click Unsubscribe</button>
+          <button id="copy-curl-btn" class="btn btn-secondary">Copy Sterile curl</button>
+        </div>
+
+        <div id="execution-result" class="result-card hidden"></div>
+      </section>
+    </main>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay hidden">
+      <div class="modal-box">
+        <h3>Confirm Remote Contact</h3>
+        <p>Executing this request will contact the remote host over HTTPS without cookies. This confirms to the sender that your mailbox is active.</p>
+        <div class="modal-actions">
+          <button id="modal-cancel-btn" class="btn btn-secondary">Cancel</button>
+          <button id="modal-confirm-btn" class="btn btn-danger">Proceed & Unsubscribe</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.ts"></script>
+</body>
+</html>

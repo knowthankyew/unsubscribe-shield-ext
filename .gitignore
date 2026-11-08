@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-*/
+*.log
+.DS_Store
+demo.mp4
+demo.gif
+test-results/
+playwright-report/

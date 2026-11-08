@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Unsubscribe Shield",
+  "version": "0.1.0",
+  "description": "Air-gapped email unsubscribe forensics & sterile zero-cookie RFC 8058 execution client for mailStripper",
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_title": "Unsubscribe Shield"
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:5001/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self' http://localhost:5001;"
+  }
+}
