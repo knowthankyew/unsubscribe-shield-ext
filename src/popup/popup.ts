@@ -38,8 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   } else {
     if (serviceStatus) {
-      serviceStatus.textContent = 'mailStripper Online (:5001)';
-      serviceStatus.className = 'status-badge online';
+      serviceStatus.textContent = 'mailStripper Offline (Standalone Preview)';
+      serviceStatus.className = 'status-badge offline';
     }
   }
 
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (executionResult) {
         executionResult.classList.remove('hidden');
         executionResult.textContent =
-          '✓ Sterile Opt-Out Succeeded (HTTP 200). No cookies or tokens transmitted.';
+          '✕ Opt-Out Not Executed: extension runtime unavailable (preview mode).';
       }
     }
   });

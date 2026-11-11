@@ -567,6 +567,7 @@
           unsubscribe-shield-ext
           <span class="version-tag">v0.1.0</span>
           <span class="role-tag">Companion A</span>
+          <span class="version-tag" style="background: rgba(245, 158, 11, 0.15); color: var(--amber); border-color: rgba(245, 158, 11, 0.3);">SIMULATION RUNTIME</span>
         </div>
         <div class="brand-desc">Universal Thunderbird MailExtension & Browser WebExtension MV3 Client</div>
       </div>
@@ -812,6 +813,7 @@
 
     async function runSimulation() {
       // Step 1: Initialization
+      log('SIMULATION', 'Note: This visualizer runs an automated protocol demonstration of UX & architectural invariants.', 'tag-warn');
       log('INIT', 'Initializing Unsubscribe Shield companion client v0.1.0...', 'tag-info');
       log('INVARIANT:CSP', "Verifying MV3 CSP: connect-src 'self' http://localhost:5001; — Pass (✓)", 'tag-pass');
       log('INVARIANT:DOM', 'Popup DOM primitives locked to safe textContent / createElement (zero innerHTML)', 'tag-pass');

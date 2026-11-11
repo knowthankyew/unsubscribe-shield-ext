@@ -10,24 +10,28 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
 function resolvePlaywright(repoRoot) {
+  const errors = [];
   const candidates = [
-    'playwright-core',
-    'playwright',
-    '@playwright/test',
     path.resolve(repoRoot, 'node_modules/playwright-core'),
     path.resolve(repoRoot, 'node_modules/playwright'),
     path.resolve(repoRoot, 'node_modules/@playwright/test'),
-    path.resolve(repoRoot, '../node_modules/playwright-core'),
-    path.resolve(repoRoot, '../node_modules/playwright'),
-    path.resolve(repoRoot, '../node_modules/@playwright/test'),
+    'playwright-core',
+    'playwright',
+    '@playwright/test',
   ];
   for (const c of candidates) {
     try {
       const mod = require(c);
       if (mod.chromium) return mod.chromium;
-    } catch {}
+    } catch (err) {
+      errors.push(`${c}: ${err.message}`);
+    }
   }
-  throw new Error('Playwright not found in repo or portfolio root. Run npm install at repo or portfolio root.');
+  throw new Error(
+    `Playwright not found in repository root. Attempted candidates:\n${errors
+      .map((e) => `  - ${e}`)
+      .join('\n')}\nRun npm install to install dependencies.`
+  );
 }
 
 function resolveFfmpeg(repoRoot) {
@@ -94,7 +98,7 @@ async function sleep(ms) {
 
   console.log(`🎬 Launching Playwright browser for unsubscribe-shield-ext demo recording...`);
   const launchArgs = ['--disable-gpu', '--window-size=1366,860'];
-  if (process.env.CI || (typeof process.getuid === 'function' && process.getuid() === 0)) {
+  if (typeof process.getuid === 'function' && process.getuid() === 0) {
     launchArgs.unshift('--no-sandbox');
   }
 

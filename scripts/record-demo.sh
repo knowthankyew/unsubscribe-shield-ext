@@ -15,10 +15,13 @@ if ! command -v node >/dev/null 2>&1; then
     exit 1
 fi
 
-node scripts/record-demo.js
-
 GIF_PATH="demo.gif"
 MP4_PATH="demo.mp4"
+
+# Remove any stale artifacts before starting new recording
+rm -f "$MP4_PATH" "$GIF_PATH"
+
+node scripts/record-demo.js
 
 if [ ! -f "$MP4_PATH" ]; then
     echo "❌ Error: Expected MP4 artifact missing: $MP4_PATH" >&2

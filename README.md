@@ -70,7 +70,7 @@ Modern email users face an aggressive ecosystem of unsolicited marketing sequenc
 ### The Three-Tier Split-Trust Model
 
 1. **The Air-Gapped Core ([`mailStripper`](https://github.com/knowthankyew/mail-stripper))**:  
-   Enforces an absolute zero-egress boundary (`connect-src 'self' http://localhost:8000;`) with **zero outbound internet access**. It parses raw RFC 822 MIME bytes locally, evaluates RFC 8058, RFC 2369, RFC 6376 (DKIM), and RFC 8601 (receiving MX) header integrity, defangs links, and calculates forensic risk scores without touching remote networks.
+   Enforces an absolute zero-egress boundary in its web UI (`connect-src 'self' http://localhost:8000;`) with **zero outbound internet access**, while exposing its local forensic analyzer on loopback (`http://localhost:5001/api/strip/file`). It parses raw RFC 822 MIME bytes locally, evaluates RFC 8058, RFC 2369, RFC 6376 (DKIM), and RFC 8601 (receiving MX) header integrity, defangs links, and calculates forensic risk scores without initiating external network requests.
 
 2. **The User Client ([`unsubscribe-shield-ext`](https://github.com/knowthankyew/unsubscribe-shield-ext))**:  
    The interactive desktop and browser client holding user-authorized network execution permissions. It interfaces directly with Thunderbird or browser webmail, streams raw bytes to local `mailStripper:5001`, displays an unignorable Active-Inbox Reconnaissance Warning modal, and fires sterile RFC 8058 One-Click HTTP POST requests **only upon explicit user confirmation**.

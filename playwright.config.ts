@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: true,
   reporter: 'list',
   webServer: {
-    command: 'npx vite --port 5173',
+    command: 'npx vite --port 5173 --strictPort',
     port: 5173,
     reuseExistingServer: !process.env.CI,
   },
