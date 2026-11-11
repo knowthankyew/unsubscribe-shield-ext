@@ -224,11 +224,12 @@ let actualE2ETestCount = null;
 try {
   let testOutput = '';
   try {
-    testOutput = execSync('npx vitest run', {
+    testOutput = execSync('npx vitest run --no-color', {
       cwd: rootDir,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 60 * 1000,
+      env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
     });
   } catch (execErr) {
     testOutput = (execErr.stdout || '') + '\n' + (execErr.stderr || '');
@@ -237,7 +238,9 @@ try {
     }
   }
 
-  const passMatch = testOutput.match(/Tests\s+(?:(\d+)\s+failed\s+\|\s+)?(\d+)\s+passed\s+\((\d+)\)/);
+  // Strip ANSI escape codes to ensure reliable parsing in CI environments
+  const cleanOutput = testOutput.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+  const passMatch = cleanOutput.match(/Tests\s+(?:(\d+)\s+failed\s+\|\s+)?(\d+)\s+passed\s+\((\d+)\)/);
   if (passMatch) {
     const failed = passMatch[1] ? parseInt(passMatch[1], 10) : 0;
     const passed = parseInt(passMatch[2], 10);
