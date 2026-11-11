@@ -3,7 +3,7 @@ dist/
 dist-*/
 *.log
 .DS_Store
-demo.mp4
-demo.gif
+.temp_demo_videos/
+*.webm
 test-results/
 playwright-report/

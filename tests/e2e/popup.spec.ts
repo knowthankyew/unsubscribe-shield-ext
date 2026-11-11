@@ -1,14 +1,8 @@
 import { test, expect } from '@playwright/test';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 test.describe('Unsubscribe Shield Popup Interface', () => {
   test('renders popup shell, status indicator, and inspect button', async ({ page }) => {
-    const popupPath = path.resolve(__dirname, '../../src/popup/index.html');
-    await page.goto(`file://${popupPath}`);
+    await page.goto('/src/popup/index.html');
 
     await expect(page.locator('h1')).toHaveText('Unsubscribe Shield');
     await expect(page.locator('#inspect-btn')).toBeVisible();
@@ -16,8 +10,7 @@ test.describe('Unsubscribe Shield Popup Interface', () => {
   });
 
   test('confirms reconnaissance warning dialog appears before execution', async ({ page }) => {
-    const popupPath = path.resolve(__dirname, '../../src/popup/index.html');
-    await page.goto(`file://${popupPath}`);
+    await page.goto('/src/popup/index.html');
 
     // Mock incoming report by showing the report section
     await page.evaluate(() => {

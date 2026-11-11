@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unsubscribe Shield — Universal Thunderbird MailExtension & Browser WebExtension MV3 Demo</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #0f172a;
+      --card-border: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --indigo: #818cf8;
+      --terminal-bg: #030712;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      width: 1366px;
+      height: 860px;
+    }
+
+    /* Top Navigation */
+    header {
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      box-shadow: 0 0 15px rgba(2, 132, 199, 0.35);
+    }
+    .brand-title {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .version-tag {
+      font-size: 11px;
+      background: #1e293b;
+      color: var(--cyan);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .role-tag {
+      font-size: 11px;
+      background: rgba(129, 140, 248, 0.15);
+      color: var(--indigo);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      border: 1px solid rgba(129, 140, 248, 0.3);
+    }
+    .brand-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .invariants-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .inv-pill {
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid transparent;
+      font-family: var(--font-mono);
+    }
+    .inv-csp { background: rgba(129, 140, 248, 0.12); color: var(--indigo); border-color: rgba(129, 140, 248, 0.3); }
+    .inv-cookies { background: rgba(34, 197, 94, 0.12); color: var(--green); border-color: rgba(34, 197, 94, 0.3); }
+    .inv-redirect { background: rgba(56, 189, 248, 0.12); color: var(--cyan); border-color: rgba(56, 189, 248, 0.3); }
+    .inv-stream { background: rgba(245, 158, 11, 0.12); color: var(--amber); border-color: rgba(245, 158, 11, 0.3); }
+    .inv-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Main Grid */
+    .dashboard {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 420px 1fr;
+      gap: 16px;
+      padding: 16px 24px;
+      height: calc(860px - 64px);
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .panel-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Column 1: Mail Client Context */
+    .mail-item {
+      padding: 10px 12px;
+      margin: 8px 12px 4px;
+      border-radius: 8px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .mail-item.selected {
+      background: rgba(56, 189, 248, 0.1);
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .mail-sender {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cyan);
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+    .mail-subject {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mail-snippet {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    .headers-container {
+      flex: 1;
+      margin: 8px 12px 12px;
+      background: var(--terminal-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      line-height: 1.45;
+      overflow-y: auto;
+      color: #cbd5e1;
+    }
+    .hdr-key { color: var(--cyan); font-weight: 600; }
+    .hdr-val { color: #f1f5f9; }
+    .hdr-safe { color: var(--green); }
+    .hdr-warn { color: var(--amber); }
+    .hdr-poison { color: var(--red); }
+
+    .byte-meter-box {
+      margin: 0 12px 12px;
+      padding: 10px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+    }
+    .byte-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-family: var(--font-mono);
+    }
+    .byte-bar {
+      height: 6px;
+      background: #1e293b;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .byte-fill {
+      height: 100%;
+      width: 4.2%;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    /* Column 2: Extension Popup Shell */
+    .popup-wrapper {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      justify-content: center;
+      align-items: center;
+      background: #020617;
+    }
+    .shield-container {
+      width: 380px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.8), 0 0 25px rgba(56, 189, 248, 0.15);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .shield-header {
+      padding: 12px 16px;
+      background: #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+    }
+    .brand-popup {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-popup h1 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .status-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-family: var(--font-mono);
+    }
+    .status-badge.online {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+    .status-badge.offline {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .shield-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      min-height: 480px;
+    }
+    .view-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .hint {
+      font-size: 12.5px;
+      color: #94a3b8;
+      line-height: 1.4;
+      text-align: center;
+      margin-top: 40px;
+    }
+    .btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: #0284c7;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #0369a1; }
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+    }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-secondary {
+      background: #334155;
+      color: #f1f5f9;
+    }
+    .btn-secondary:hover { background: #475569; }
+
+    .verdict-banner {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+    }
+    .badge.pass { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+    .badge.fail { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge.warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    .verdict-text {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #e2e8f0;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #1e293b;
+    }
+
+    .warning-card {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .warning-icon { font-size: 18px; line-height: 1; }
+    .warning-content strong {
+      font-size: 11px;
+      color: #fbbf24;
+      display: block;
+      margin-bottom: 3px;
+    }
+    .warning-content p {
+      font-size: 11px;
+      color: #fde68a;
+      line-height: 1.35;
+    }
+
+    .action-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .result-card {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      line-height: 1.4;
+      font-family: var(--font-mono);
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    /* Simulated Modal Overlay */
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+      transition: opacity 0.2s ease;
+    }
+    .modal-box {
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 10px;
+      padding: 18px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+    }
+    .modal-box h3 {
+      font-size: 14px;
+      color: #f8fafc;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .modal-box p {
+      font-size: 11.5px;
+      color: #cbd5e1;
+      line-height: 1.45;
+      margin-bottom: 16px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Column 3: Split-Trust Architecture & Live Monitor */
+    .arch-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px 16px;
+      background: rgba(15, 23, 42, 0.4);
+      border-bottom: 1px solid var(--card-border);
+    }
+    .split-trust-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .trust-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+    }
+    .trust-card.active {
+      border-color: rgba(56, 189, 248, 0.6);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+    }
+    .trust-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .trust-badge {
+      font-size: 9.5px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: rgba(15, 23, 42, 0.7);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .trust-desc {
+      font-size: 10.5px;
+      color: #cbd5e1;
+      line-height: 1.35;
+    }
+
+    .log-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--terminal-bg);
+      border-radius: 8px;
+      margin: 0 16px 14px;
+      border: 1px solid var(--card-border);
+      overflow: hidden;
+    }
+    .log-header {
+      padding: 8px 12px;
+      background: rgba(15, 23, 42, 0.9);
+      border-bottom: 1px solid var(--card-border);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+    }
+    .terminal-body {
+      flex: 1;
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      line-height: 1.5;
+      overflow-y: auto;
+      color: #cbd5e1;
+    }
+    .log-line { margin-bottom: 3px; word-break: break-all; }
+    .log-time { color: #64748b; margin-right: 6px; }
+    .log-tag { font-weight: 700; margin-right: 6px; }
+    .tag-pass { color: var(--green); }
+    .tag-info { color: var(--cyan); }
+    .tag-warn { color: var(--amber); }
+    .tag-crit { color: var(--red); }
+    .tag-user { color: var(--indigo); }
+
+    .hidden { display: none !important; }
+
+    /* Animated Cursor Simulation */
+    #cursor-pointer {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
+      z-index: 1000;
+      transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
+      transform: translate(-100px, -100px);
+    }
+    #cursor-pointer svg {
+      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.8));
+    }
+  </style>
+</head>
+<body>
+  <!-- Simulated Cursor -->
+  <div id="cursor-pointer">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <path d="M5.5 3.5L18.5 11.5L12 13.5L9.5 20.5L5.5 3.5Z" fill="#38bdf8" stroke="#0f172a" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🛡️</div>
+      <div>
+        <div class="brand-title">
+          unsubscribe-shield-ext
+          <span class="version-tag">v0.1.0</span>
+          <span class="role-tag">Companion A</span>
+        </div>
+        <div class="brand-desc">Universal Thunderbird MailExtension & Browser WebExtension MV3 Client</div>
+      </div>
+    </div>
+    <div class="invariants-bar">
+      <div class="inv-pill inv-csp"><span class="inv-dot"></span>CSP: 'self' :5001</div>
+      <div class="inv-pill inv-cookies"><span class="inv-dot"></span>credentials: 'omit'</div>
+      <div class="inv-pill inv-redirect"><span class="inv-dot"></span>redirect: 'manual'</div>
+      <div class="inv-pill inv-stream"><span class="inv-dot"></span>raw Blob ≤ 10MB</div>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <!-- Column 1: Mail Client Context -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <span>📬</span>
+          <span>Mail Client Session</span>
+        </div>
+        <span class="trust-badge">Thunderbird / Webmail</span>
+      </div>
+
+      <div class="mail-item selected" id="mail-item-1">
+        <div class="mail-sender">
+          <span>Systems Weekly</span>
+          <span class="badge pass">DKIM ✓</span>
+        </div>
+        <div class="mail-subject">Issue #148: Zero-Trust Protocols</div>
+        <div class="mail-snippet">RFC 8058 One-Click POST header present with cryptographic DKIM coverage.</div>
+      </div>
+
+      <div class="mail-item" id="mail-item-2">
+        <div class="mail-sender">
+          <span>Billing Notification</span>
+          <span class="badge fail">LURE ✕</span>
+        </div>
+        <div class="mail-subject">ACTION REQUIRED: Renew Account</div>
+        <div class="mail-snippet">Unauthenticated domain; tracking beacon embeds user token in URL.</div>
+      </div>
+
+      <div class="panel-header" style="border-top: 1px solid var(--card-border); margin-top: 4px;">
+        <div class="panel-title-group">
+          <span>🔬</span>
+          <span>Active Header Inspection</span>
+        </div>
+        <span class="trust-badge" id="raw-size-tag">42.6 KB</span>
+      </div>
+
+      <div class="headers-container" id="headers-view">
+<span class="hdr-key">From:</span> <span class="hdr-val">editor@systems-digest.io</span>
+<span class="hdr-key">To:</span> <span class="hdr-val">user@workplace.net</span>
+<span class="hdr-key">Subject:</span> <span class="hdr-val">Issue #148: Zero-Trust Protocols</span>
+<span class="hdr-key">List-Unsubscribe:</span> <span class="hdr-safe">&lt;https://optout.systems-digest.io/one-click?token=9f8a2&gt;</span>
+<span class="hdr-key">List-Unsubscribe-Post:</span> <span class="hdr-safe">List-Unsubscribe=One-Click</span>
+<span class="hdr-key">Authentication-Results:</span> <span class="hdr-safe">mx.google.com; dkim=pass (header.i=@systems-digest.io); spf=pass</span>
+<span class="hdr-key">DKIM-Signature:</span> <span class="hdr-val">v=1; a=rsa-sha256; ... h=From:To:Subject:List-Unsubscribe:List-Unsubscribe-Post</span>
+      </div>
+
+      <div class="byte-meter-box">
+        <div class="byte-label">
+          <span>Raw Ingestion Budget</span>
+          <span id="byte-ratio">0.04 / 10.00 MB</span>
+        </div>
+        <div class="byte-bar">
+          <div class="byte-fill" id="byte-fill-bar"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Column 2: Extension Popup Shell -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <span>🛡️</span>
+          <span>Unsubscribe Shield (Popup UI)</span>
+        </div>
+        <span class="trust-badge">Manifest V3 Shell</span>
+      </div>
+
+      <div class="popup-wrapper">
+        <div class="shield-container">
+          <header class="shield-header">
+            <div class="brand-popup">
+              <span class="icon">🛡️</span>
+              <h1>Unsubscribe Shield</h1>
+            </div>
+            <span id="service-status" class="status-badge online">mailStripper Online (:5001)</span>
+          </header>
+
+          <main class="shield-body">
+            <!-- Idle View -->
+            <section id="idle-view" class="view-panel">
+              <p class="hint">Inspect an active email to analyze header integrity & opt-out safety.</p>
+              <button id="inspect-btn" class="btn btn-primary">
+                <span>🔍</span>
+                <span>Inspect Active Message</span>
+              </button>
+            </section>
+
+            <!-- Report View -->
+            <section id="report-view" class="view-panel hidden">
+              <div class="verdict-banner">
+                <div id="verdict-badge" class="badge pass">OneClickPostCandidate</div>
+                <div id="provenance-badge" class="badge warn">Provenance: TrustedReceivingMx</div>
+              </div>
+
+              <p id="summary-verdict" class="verdict-text">
+                RFC 8058 One-Click Candidate (systems-digest.io) — headers verified by trusted receiving MX with cryptographically signed List-Unsubscribe headers.
+              </p>
+
+              <div id="recon-warning-card" class="warning-card">
+                <span class="warning-icon">⚠️</span>
+                <div class="warning-content">
+                  <strong>Active-Inbox Reconnaissance Warning:</strong>
+                  <p id="recon-warning-text">
+                    Executing this unsubscribe request contacts the remote host over HTTPS. This confirms to the sender that your mailbox is active and monitored.
+                  </p>
+                </div>
+              </div>
+
+              <div id="action-section" class="action-section">
+                <button id="execute-btn" class="btn btn-danger">
+                  <span>⚡</span>
+                  <span>Execute Sterile One-Click Unsubscribe</span>
+                </button>
+                <button id="copy-curl-btn" class="btn btn-secondary">
+                  <span>📋</span>
+                  <span>Copy Sterile curl</span>
+                </button>
+              </div>
+
+              <div id="execution-result" class="result-card hidden"></div>
+            </section>
+          </main>
+
+          <!-- Confirmation Modal -->
+          <div id="confirm-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+              <h3><span>⚠️</span> Confirm Remote Contact</h3>
+              <p>Executing this request will contact the remote host over HTTPS without cookies. This confirms to the sender that your mailbox is active.</p>
+              <div class="modal-actions">
+                <button id="modal-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button id="modal-confirm-btn" class="btn btn-danger">Proceed & Unsubscribe</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Column 3: Split-Trust Boundary & Protocol Invariant Monitor -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title-group">
+          <span>🏛️</span>
+          <span>Split-Trust Architecture & Invariant Stream</span>
+        </div>
+        <span class="trust-badge">Zero Ambient Cookies</span>
+      </div>
+
+      <div class="arch-panel">
+        <div class="split-trust-grid">
+          <div class="trust-card" id="card-engine">
+            <div class="trust-title">
+              <span>mailStripper</span>
+              <span class="trust-badge">:5001</span>
+            </div>
+            <div class="trust-desc">Air-gapped forensic engine. Zero outbound internet access (CSP strictly locked).</div>
+          </div>
+
+          <div class="trust-card active" id="card-client">
+            <div class="trust-title">
+              <span>Shield Client</span>
+              <span class="trust-badge">MV3 Ext</span>
+            </div>
+            <div class="trust-desc">Authorized network client. Holds permissions; executes sterile POST only on confirmation.</div>
+          </div>
+
+          <div class="trust-card" id="card-remote">
+            <div class="trust-title">
+              <span>Remote Host</span>
+              <span class="trust-badge">HTTPS</span>
+            </div>
+            <div class="trust-desc">External ESP endpoint. Receives zero cookies, no redirects, and canceled stream.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="log-panel">
+        <div class="log-header">
+          <span>PROTOCOL EXECUTION & INVARIANT AUDIT LOG</span>
+          <span id="log-counter">0 events</span>
+        </div>
+        <div class="terminal-body" id="log-body"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const logBody = document.getElementById('log-body');
+    const logCounter = document.getElementById('log-counter');
+    const cursor = document.getElementById('cursor-pointer');
+    let eventCount = 0;
+    const startTime = Date.now();
+
+    function log(tag, msg, type = 'tag-info') {
+      eventCount++;
+      logCounter.textContent = `${eventCount} events`;
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(3).padStart(6, '0');
+      const row = document.createElement('div');
+      row.className = 'log-line';
+
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'log-time';
+      timeSpan.textContent = `[+${elapsed}s]`;
+
+      const tagSpan = document.createElement('span');
+      tagSpan.className = `log-tag ${type}`;
+      tagSpan.textContent = `[${tag}]`;
+
+      const msgSpan = document.createElement('span');
+      msgSpan.textContent = msg;
+
+      row.appendChild(timeSpan);
+      row.appendChild(tagSpan);
+      row.appendChild(msgSpan);
+      logBody.appendChild(row);
+      logBody.scrollTop = logBody.scrollHeight;
+    }
+
+    async function sleep(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
+
+    async function moveCursorTo(element, offsetX = 0.5, offsetY = 0.5, duration = 600) {
+      const rect = element.getBoundingClientRect();
+      const targetX = rect.left + rect.width * offsetX;
+      const targetY = rect.top + rect.height * offsetY;
+      cursor.style.transform = `translate(${targetX}px, ${targetY}px)`;
+      await sleep(duration);
+    }
+
+    async function runSimulation() {
+      // Step 1: Initialization
+      log('INIT', 'Initializing Unsubscribe Shield companion client v0.1.0...', 'tag-info');
+      log('INVARIANT:CSP', "Verifying MV3 CSP: connect-src 'self' http://localhost:5001; — Pass (✓)", 'tag-pass');
+      log('INVARIANT:DOM', 'Popup DOM primitives locked to safe textContent / createElement (zero innerHTML)', 'tag-pass');
+      log('PROBE', 'Probing local mailStripper health endpoint (GET http://localhost:5001/api/strip/privacy-audit)...', 'tag-info');
+      await sleep(1000);
+
+      log('PROBE', 'mailStripper engine online at http://localhost:5001 (Air-gapped boundary established)', 'tag-pass');
+      await sleep(1200);
+
+      // Step 2: User clicks inspect button
+      const inspectBtn = document.getElementById('inspect-btn');
+      await moveCursorTo(inspectBtn, 0.5, 0.5, 700);
+      inspectBtn.style.transform = 'scale(0.96)';
+      await sleep(150);
+      inspectBtn.style.transform = '';
+
+      log('USER', 'User triggered "Inspect Active Message" on selected email (Issue #148)', 'tag-user');
+      log('INVARIANT:RAW-BYTES', 'Thunderbird MailExtension: Reading message as raw 8-bit octet stream (Size: 42.6 KB)', 'tag-info');
+      log('INVARIANT:BUDGET', 'Stream size 43,622 bytes is well within 10.00 MB client budget cap — Pass (✓)', 'tag-pass');
+      await sleep(1000);
+
+      // Step 3: Stream to local mailStripper
+      log('DISPATCH', 'Streaming raw Blob multipart to http://localhost:5001/api/strip/file...', 'tag-info');
+      document.getElementById('card-engine').classList.add('active');
+      await sleep(1400);
+
+      // Step 4: Render report
+      document.getElementById('card-engine').classList.remove('active');
+      document.getElementById('idle-view').classList.add('hidden');
+      document.getElementById('report-view').classList.remove('hidden');
+
+      log('FORENSICS', 'mailStripper verdict: OneClickPostCandidate (Risk Score: 10/100, TrustedReceivingMx)', 'tag-pass');
+      log('RFC8058', 'Valid List-Unsubscribe <https://optout.systems-digest.io/one-click?token=9f8a2> confirmed', 'tag-pass');
+      log('DKIM', 'Authentication-Results validates dkim=pass for sender domain @systems-digest.io', 'tag-pass');
+      log('SAFETY', 'Active-Inbox Reconnaissance Warning modal primed. Automated remote execution BLOCKED.', 'tag-warn');
+      await sleep(1600);
+
+      // Step 5: User clicks execute button
+      const executeBtn = document.getElementById('execute-btn');
+      await moveCursorTo(executeBtn, 0.5, 0.5, 800);
+      executeBtn.style.transform = 'scale(0.96)';
+      await sleep(150);
+      executeBtn.style.transform = '';
+
+      log('USER', 'User initiated sterile unsubscribe request. Displaying Active-Inbox Reconnaissance Warning modal...', 'tag-user');
+      const confirmModal = document.getElementById('confirm-modal');
+      confirmModal.classList.remove('hidden');
+      await sleep(1400);
+
+      // Step 6: User clicks confirm in modal
+      const confirmBtn = document.getElementById('modal-confirm-btn');
+      await moveCursorTo(confirmBtn, 0.5, 0.5, 700);
+      confirmBtn.style.transform = 'scale(0.96)';
+      await sleep(150);
+      confirmBtn.style.transform = '';
+
+      log('USER', 'User explicitly confirmed remote contact after warning disclosure.', 'tag-user');
+      confirmModal.classList.add('hidden');
+      executeBtn.setAttribute('disabled', 'true');
+      executeBtn.textContent = 'Executing Sterile POST...';
+
+      // Step 7: Sterile HTTP POST Execution
+      document.getElementById('card-remote').classList.add('active');
+      log('INVARIANT:STERILE', 'Executing sterile RFC 8058 HTTP POST to remote host:', 'tag-info');
+      log('INVARIANT:URL', '  Target: https://optout.systems-digest.io/one-click?token=9f8a2 (HTTPS enforced)', 'tag-info');
+      log('INVARIANT:COOKIES', "  credentials: 'omit' (Zero ambient cookies, zero session tokens transmitted)", 'tag-pass');
+      log('INVARIANT:REDIRECT', "  redirect: 'manual' (Automatic HTTP redirect tracking chains blocked)", 'tag-pass');
+      log('INVARIANT:REFERRER', "  referrerPolicy: 'no-referrer' (Zero client or origin metadata leaked)", 'tag-pass');
+      log('INVARIANT:BODY', "  body: 'List-Unsubscribe=One-Click' (Strict RFC 8058 payload)", 'tag-info');
+      await sleep(1500);
+
+      // Step 8: Stream Cancellation & Result
+      log('HTTP:RESPONSE', 'Remote server responded: HTTP 200 OK (Opt-out acknowledged)', 'tag-pass');
+      log('INVARIANT:STREAM', 'Executing await res.body?.cancel() — response stream discarded immediately', 'tag-pass');
+      document.getElementById('card-remote').classList.remove('active');
+
+      executeBtn.removeAttribute('disabled');
+      executeBtn.textContent = 'Execute Sterile One-Click Unsubscribe';
+
+      const executionResult = document.getElementById('execution-result');
+      executionResult.classList.remove('hidden');
+      const now = new Date().toISOString();
+      executionResult.textContent = `✓ Sterile Opt-Out Succeeded (HTTP 200) at ${now}. Zero cookies or tokens transmitted.`;
+
+      log('COMPLETE', 'Sterile opt-out verified. Mailbox protected from tracking traps.', 'tag-pass');
+      cursor.style.opacity = '0';
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      runSimulation();
+    });
+  </script>
+</body>
+</html>

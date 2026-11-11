@@ -1,23 +1,49 @@
 #!/usr/bin/env bash
-set -eo pipefail
+# Orchestrates automated demo generation for unsubscribe-shield-ext
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-cd "$ROOT_DIR"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+REPO_ROOT="$(dirname "$DIR")"
+cd "$REPO_ROOT"
 
-echo "=== Recording Unsubscribe Shield Automated Walkthrough ==="
+echo "=========================================================="
+echo "  unsubscribe-shield-ext - Automated Demo Recorder"
+echo "=========================================================="
 
-if ! command -v npx >/dev/null 2>&1; then
-  echo "Error: npx is required to run Playwright."
-  exit 1
+if ! command -v node >/dev/null 2>&1; then
+    echo "❌ Error: Node.js is required to record demo animations." >&2
+    exit 1
 fi
 
 node scripts/record-demo.js
 
-if command -v ffmpeg >/dev/null 2>&1; then
-  echo "Converting demo recording to demo.gif..."
-  ffmpeg -y -i demo.mp4 -vf "fps=15,scale=760:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" demo.gif
-  echo "✓ demo.gif generated."
+GIF_PATH="demo.gif"
+MP4_PATH="demo.mp4"
+
+if [ ! -f "$MP4_PATH" ]; then
+    echo "❌ Error: Expected MP4 artifact missing: $MP4_PATH" >&2
+    exit 1
 fi
 
-echo "✓ Walkthrough recording complete: demo.mp4"
+if [ ! -f "$GIF_PATH" ]; then
+    echo "❌ Error: Expected GIF artifact missing: $GIF_PATH" >&2
+    exit 1
+fi
+
+# Determine file size portably
+if stat -f%z "$GIF_PATH" >/dev/null 2>&1; then
+    GIF_SIZE=$(stat -f%z "$GIF_PATH")
+else
+    GIF_SIZE=$(stat -c%s "$GIF_PATH")
+fi
+
+MIN_SIZE=50000
+MAX_SIZE=15728640
+
+if [ "$GIF_SIZE" -lt "$MIN_SIZE" ] || [ "$GIF_SIZE" -gt "$MAX_SIZE" ]; then
+    echo "❌ Error: Generated GIF size ($GIF_SIZE bytes) outside acceptable bounds ($MIN_SIZE - $MAX_SIZE bytes)" >&2
+    exit 1
+fi
+
+echo "✅ Demo recording verified:"
+ls -lh "$GIF_PATH" "$MP4_PATH"

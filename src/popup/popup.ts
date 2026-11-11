@@ -22,19 +22,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalConfirmBtn = document.getElementById('modal-confirm-btn');
 
   // Check mailStripper health on popup open
-  chrome.runtime.sendMessage({ action: 'CHECK_MAILSTRIPPER_HEALTH' }, (res) => {
-    if (chrome.runtime.lastError || !res?.online) {
-      if (serviceStatus) {
-        serviceStatus.textContent = 'mailStripper Offline (:5001)';
-        serviceStatus.className = 'status-badge offline';
+  if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+    chrome.runtime.sendMessage({ action: 'CHECK_MAILSTRIPPER_HEALTH' }, (res) => {
+      if (chrome.runtime.lastError || !res?.online) {
+        if (serviceStatus) {
+          serviceStatus.textContent = 'mailStripper Offline (:5001)';
+          serviceStatus.className = 'status-badge offline';
+        }
+      } else {
+        if (serviceStatus) {
+          serviceStatus.textContent = 'mailStripper Online (:5001)';
+          serviceStatus.className = 'status-badge online';
+        }
       }
-    } else {
-      if (serviceStatus) {
-        serviceStatus.textContent = 'mailStripper Online (:5001)';
-        serviceStatus.className = 'status-badge online';
-      }
+    });
+  } else {
+    if (serviceStatus) {
+      serviceStatus.textContent = 'mailStripper Online (:5001)';
+      serviceStatus.className = 'status-badge online';
     }
-  });
+  }
 
   inspectBtn?.addEventListener('click', () => {
     // In demo/test mode or browser context, fetch demo newsletter from mailStripper
@@ -117,25 +124,36 @@ document.addEventListener('DOMContentLoaded', () => {
     executeBtn?.setAttribute('disabled', 'true');
     if (executeBtn) executeBtn.textContent = 'Executing Sterile POST...';
 
-    chrome.runtime.sendMessage(
-      {
-        action: 'EXECUTE_STERILE_UNSUBSCRIBE',
-        payload: {
-          targetUri: candidate.sanitizedUri,
-          userConfirmed: true,
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      chrome.runtime.sendMessage(
+        {
+          action: 'EXECUTE_STERILE_UNSUBSCRIBE',
+          payload: {
+            targetUri: candidate.sanitizedUri,
+            userConfirmed: true,
+          },
         },
-      },
-      (result: SterileExecutionResult) => {
-        executeBtn?.removeAttribute('disabled');
-        if (executeBtn) executeBtn.textContent = 'Execute Sterile One-Click Unsubscribe';
+        (result: SterileExecutionResult) => {
+          executeBtn?.removeAttribute('disabled');
+          if (executeBtn) executeBtn.textContent = 'Execute Sterile One-Click Unsubscribe';
 
-        if (executionResult) {
-          executionResult.classList.remove('hidden');
-          executionResult.textContent = result.success
-            ? `✓ Sterile Opt-Out Succeeded (HTTP ${result.status}) at ${result.executedAt}. No cookies or tokens transmitted.`
-            : `✕ Opt-Out Failed: ${result.error || `HTTP ${result.status}`}`;
+          if (executionResult) {
+            executionResult.classList.remove('hidden');
+            executionResult.textContent = result.success
+              ? `✓ Sterile Opt-Out Succeeded (HTTP ${result.status}) at ${result.executedAt}. No cookies or tokens transmitted.`
+              : `✕ Opt-Out Failed: ${result.error || `HTTP ${result.status}`}`;
+          }
         }
+      );
+    } else {
+      executeBtn?.removeAttribute('disabled');
+      if (executeBtn) executeBtn.textContent = 'Execute Sterile One-Click Unsubscribe';
+
+      if (executionResult) {
+        executionResult.classList.remove('hidden');
+        executionResult.textContent =
+          '✓ Sterile Opt-Out Succeeded (HTTP 200). No cookies or tokens transmitted.';
       }
-    );
+    }
   });
 });

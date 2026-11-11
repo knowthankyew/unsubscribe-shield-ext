@@ -1,69 +1,211 @@
-import { chromium } from '@playwright/test';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'fs';
+import os from 'os';
+import { fileURLToPath, pathToFileURL } from 'url';
+import { execSync, execFileSync } from 'child_process';
+import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..');
+const require = createRequire(import.meta.url);
 
-async function record() {
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    viewport: { width: 420, height: 600 },
-    recordVideo: {
-      dir: rootDir,
-      size: { width: 420, height: 600 },
-    },
-  });
-
-  const page = await context.newPage();
-  const popupPath = path.join(rootDir, 'src/popup/index.html');
-  await page.goto(`file://${popupPath}`);
-  await page.waitForTimeout(1000);
-
-  // Simulate report load
-  await page.evaluate(() => {
-    const idleView = document.getElementById('idle-view');
-    const reportView = document.getElementById('report-view');
-    const actionSection = document.getElementById('action-section');
-    const verdictBadge = document.getElementById('verdict-badge');
-    const provBadge = document.getElementById('provenance-badge');
-    const summaryVerdict = document.getElementById('summary-verdict');
-    const reconWarningCard = document.getElementById('recon-warning-card');
-    const reconWarningText = document.getElementById('recon-warning-text');
-
-    idleView?.classList.add('hidden');
-    reportView?.classList.remove('hidden');
-    actionSection?.classList.remove('hidden');
-
-    if (verdictBadge) {
-      verdictBadge.textContent = 'OneClickPostCandidate';
-      verdictBadge.className = 'badge pass';
-    }
-    if (provBadge) {
-      provBadge.textContent = 'Provenance: Headers Name Expected MX';
-      provBadge.className = 'badge warn';
-    }
-    if (summaryVerdict) {
-      summaryVerdict.textContent = 'RFC 8058 One-Click POST candidate (systems-digest.io) — headers name expected receiving MX.';
-    }
-    if (reconWarningCard && reconWarningText) {
-      reconWarningText.textContent = 'Executing an unsubscribe request contacts the remote host and can confirm to the sender that your mailbox is active.';
-      reconWarningCard.classList.remove('hidden');
-    }
-  });
-
-  await page.waitForTimeout(2000);
-  await page.click('#execute-btn');
-  await page.waitForTimeout(1500);
-  await page.click('#modal-cancel-btn');
-  await page.waitForTimeout(1500);
-
-  await context.close();
-  await browser.close();
+function resolvePlaywright(repoRoot) {
+  const candidates = [
+    'playwright-core',
+    'playwright',
+    '@playwright/test',
+    path.resolve(repoRoot, 'node_modules/playwright-core'),
+    path.resolve(repoRoot, 'node_modules/playwright'),
+    path.resolve(repoRoot, 'node_modules/@playwright/test'),
+    path.resolve(repoRoot, '../node_modules/playwright-core'),
+    path.resolve(repoRoot, '../node_modules/playwright'),
+    path.resolve(repoRoot, '../node_modules/@playwright/test'),
+  ];
+  for (const c of candidates) {
+    try {
+      const mod = require(c);
+      if (mod.chromium) return mod.chromium;
+    } catch {}
+  }
+  throw new Error('Playwright not found in repo or portfolio root. Run npm install at repo or portfolio root.');
 }
 
-record().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+function resolveFfmpeg(repoRoot) {
+  if (process.env.FFMPEG_PATH && fs.existsSync(process.env.FFMPEG_PATH)) {
+    return process.env.FFMPEG_PATH;
+  }
+  try {
+    const sys = execSync('which ffmpeg', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (sys && fs.existsSync(sys)) return sys;
+  } catch {}
+
+  const standardPaths = [
+    path.resolve(repoRoot, 'node_modules/ffmpeg-static/ffmpeg'),
+    path.resolve(repoRoot, '../node_modules/ffmpeg-static/ffmpeg'),
+    '/opt/homebrew/bin/ffmpeg',
+    '/usr/local/bin/ffmpeg',
+  ];
+  for (const p of standardPaths) {
+    if (fs.existsSync(p)) return p;
+  }
+
+  // macOS-specific cache lookup for Playwright-managed ffmpeg builds;
+  // non-macOS environments rely on system ffmpeg or ffmpeg-static above.
+  const cacheDir = path.join(os.homedir(), 'Library/Caches/ms-playwright');
+  if (fs.existsSync(cacheDir)) {
+    for (const entry of fs.readdirSync(cacheDir)) {
+      if (entry.startsWith('ffmpeg-')) {
+        const bin = path.join(cacheDir, entry, 'ffmpeg-mac');
+        if (fs.existsSync(bin)) return bin;
+      }
+    }
+  }
+  return 'ffmpeg';
+}
+
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+(async () => {
+  const repoRoot = path.resolve(__dirname, '..');
+  const chromium = resolvePlaywright(repoRoot);
+  const tempVideoDir = path.join(repoRoot, '.temp_demo_videos');
+  if (!fs.existsSync(tempVideoDir)) fs.mkdirSync(tempVideoDir, { recursive: true });
+
+  const visualizerHtml = path.join(repoRoot, 'scripts/demo-visualizer/index.html');
+  if (!fs.existsSync(visualizerHtml)) {
+    throw new Error(`Demo visualizer not found at ${visualizerHtml}`);
+  }
+
+  // Look for standard browser installations; on Linux/Windows, Playwright launches
+  // its default bundled Chromium binary automatically when executablePath is undefined.
+  let browserExecutable = undefined;
+  const browserCandidates = [
+    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ];
+  for (const b of browserCandidates) {
+    if (fs.existsSync(b)) {
+      browserExecutable = b;
+      break;
+    }
+  }
+
+  console.log(`🎬 Launching Playwright browser for unsubscribe-shield-ext demo recording...`);
+  const launchArgs = ['--disable-gpu', '--window-size=1366,860'];
+  if (process.env.CI || (typeof process.getuid === 'function' && process.getuid() === 0)) {
+    launchArgs.unshift('--no-sandbox');
+  }
+
+  const launchOptions = {
+    headless: true,
+    args: launchArgs,
+  };
+  if (browserExecutable) {
+    launchOptions.executablePath = browserExecutable;
+  }
+
+  try {
+    const browser = await chromium.launch(launchOptions);
+
+    try {
+      const context = await browser.newContext({
+        viewport: { width: 1366, height: 860 },
+        recordVideo: {
+          dir: tempVideoDir,
+          size: { width: 1366, height: 860 },
+        },
+      });
+
+      const page = await context.newPage();
+      const visualizerUrl = pathToFileURL(visualizerHtml).href;
+      console.log(`Step 1: Navigating to Extension Visualizer (${visualizerUrl})...`);
+      await page.goto(visualizerUrl, { waitUntil: 'load' });
+
+      console.log('Step 2: Recording real-time protocol simulation & sterile unsubscribe execution...');
+      // The in-browser simulation runs for ~14 seconds
+      await sleep(15500);
+
+      console.log('Step 3: Finalizing video recording...');
+      await page.close();
+      await context.close();
+    } finally {
+      await browser.close();
+    }
+
+    // Locate recorded video sorted by most recent modification time
+    const videoFiles = fs
+      .readdirSync(tempVideoDir)
+      .filter((f) => f.endsWith('.webm'))
+      .map((f) => ({
+        name: f,
+        fullPath: path.join(tempVideoDir, f),
+        mtimeMs: fs.statSync(path.join(tempVideoDir, f)).mtimeMs,
+      }))
+      .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+    if (videoFiles.length > 0) {
+      const latestVideo = videoFiles[0].fullPath;
+      const destMp4 = path.join(repoRoot, 'demo.mp4');
+      const destGif = path.join(repoRoot, 'demo.gif');
+      const ffmpegPath = resolveFfmpeg(repoRoot);
+
+      console.log(`Converting recording to web-optimized MP4 (H.264) via ${ffmpegPath}...`);
+      try {
+        execFileSync(
+          ffmpegPath,
+          [
+            '-y',
+            '-i',
+            latestVideo,
+            '-c:v',
+            'libx264',
+            '-pix_fmt',
+            'yuv420p',
+            '-movflags',
+            '+faststart',
+            destMp4,
+          ],
+          { stdio: 'inherit' }
+        );
+        const statsMp4 = fs.statSync(destMp4);
+        console.log(
+          `\n🎉 Demo video recorded and saved to: ${destMp4} (${(
+            statsMp4.size /
+            (1024 * 1024)
+          ).toFixed(2)} MB)\n`
+        );
+
+        console.log(`Generating animated demo.gif for GitHub README...`);
+        execFileSync(
+          ffmpegPath,
+          [
+            '-y',
+            '-i',
+            destMp4,
+            '-vf',
+            'fps=10,scale=800:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer',
+            destGif,
+          ],
+          { stdio: 'inherit' }
+        );
+        const statsGif = fs.statSync(destGif);
+        console.log(
+          `🎉 Demo GIF generated and saved to: ${destGif} (${(
+            statsGif.size /
+            (1024 * 1024)
+          ).toFixed(2)} MB)\n`
+        );
+      } catch (e) {
+        console.warn('FFmpeg conversion error:', e.message);
+        process.exitCode = 1;
+      }
+    } else {
+      console.error('❌ Error: No recorded video file was created in temporary video directory.');
+      process.exitCode = 1;
+    }
+  } finally {
+    fs.rmSync(tempVideoDir, { recursive: true, force: true });
+  }
+})();

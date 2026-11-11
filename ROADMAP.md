@@ -22,7 +22,7 @@ Under portfolio governance boundaries:
 
 | Milestone | Target | Description | Status |
 |:----------|:------:|:------------|:------:|
-| **Milestone 1** | `v0.1.0` | **Scaffold & Sterile Engine**: Vite/TS build, Manifest V3, background worker, sterile RFC 8058 executor, popup UI, unit tests, Playwright recorder, claims linter | 🟡 **Scaffolded** |
+| **Milestone 1** | `v0.1.0` | **Scaffold & Sterile Engine**: Vite/TS build, Manifest V3, background worker, sterile RFC 8058 executor, popup UI, unit tests, Playwright recorder, claims linter | 🟢 **Complete** |
 | **Milestone 2** | `v0.2.0` | **Thunderbird MailExtension Adapter**: `browser.messages.getRaw` stream extraction, raw blob piping, message-header action bar badge | 📋 **Planned** |
 | **Milestone 3** | `v0.3.0` | **Webmail Overlay Adapter**: Chromium/Firefox DOM content script for Gmail/Outlook Web, floating shield button, safe iframe injection | 📋 **Planned** |
 | **Milestone 4** | `v0.4.0` | **Packaging & Store Publishing**: AMO (addons.mozilla.org) + ATN (Thunderbird) + Chrome Web Store release builds, automated SBOM | 📋 **Planned** |
